@@ -1,4 +1,4 @@
-# Read CVR Stats
+# Read XML CVRs, Generate Stats and Export to CSV format
 .NET Console Program to read a folder of XML CVR records and generate statistics and optionally output a CSV of all CVRs.
 
 ## Usage - Install and Run
