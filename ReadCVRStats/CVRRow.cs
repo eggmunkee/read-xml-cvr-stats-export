@@ -4,7 +4,9 @@ public class CVRRow
         "CvrGuid",
         "BatchNumber",
         "BatchSequence",
-        "SheetNumber"
+        "SheetNumber",
+        "CreateDate",
+        "ModifyDate"
     };
 
     public string[] ColumnValues = new string[Columns.Length];

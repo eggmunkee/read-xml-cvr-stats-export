@@ -20,14 +20,32 @@
 * Min/Max SheetNumber
 * Per Party Ballot Guid found:
     - Same stats for subset with that party ballot
+* TODO: Add stats per Contents and Option to complete stats
 
 ## CSV Output Fields
 * CvrGuid
 * BatchNumber
 * BatchSequence
 * SheetNumber
-* TODO: CreateDate
-* TODO: ModifyDate
+* CreateDate
+* ModifyDate
+* TODO: Add inputs to capture selected ballot selections in columns
 
 ## Read/Export Unordered
 CVR files are read in the order returned by reading the directory. The CSV file generated may not generate the same order on subsequent runs.
+
+### Notes and Plans
+To capture all contents of a dataset, a project could be added that generates a list of candidates among the CVRs which could feed into the 
+CSV export columns. A file format could created by hand or generated that would be passed in and read to generate columns for the export from it.
+
+Generic format needed (expanded for all options found):
+* Party Ballot Guid
+    - Contest Name
+        - Contest Option
+        - Contest Option 2
+    - Contest Two Name
+        - Contest Option
+        - Contest Option 2
+
+Columns generated from example above alone would be:
+| Party Ballot Guid | Contest Name | Option | Option 2 | Contest Two Name | Contest Option | Contest Option 2 |

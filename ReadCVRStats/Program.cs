@@ -54,6 +54,8 @@ foreach (string cvrsPath in cvrsPaths)
             XNamespace ns = cvrRoot.GetDefaultNamespace();
             string recordPartyKey = "";
             CVRRow cvrRow = new CVRRow();
+            cvrRow.SetColumnValue("CreateDate", createDate.ToString("yyyy-MM-dd HH:mm:ss"));
+            cvrRow.SetColumnValue("ModifyDate", modifyDate.ToString("yyyy-MM-dd HH:mm:ss"));
             CallIfHasStringValue(
                 (partyNameKey) => {
                     if (partyStats.ContainsKey(partyNameKey)) {
