@@ -48,4 +48,5 @@ Generic format needed (expanded for all options found):
         - Contest Option 2
 
 Columns generated from example above alone would be:
+
 | Party Ballot Guid | Contest Name | Option | Option 2 | Contest Two Name | Contest Option | Contest Option 2 |
