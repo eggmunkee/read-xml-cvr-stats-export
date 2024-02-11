@@ -5,6 +5,8 @@ using System.Xml.Linq;
 // create stats collection
 CVRStats stats = new CVRStats();
 Dictionary<string, CVRStats> partyStats = new Dictionary<string, CVRStats>();
+// structure type to parse
+CVRStructureType structureType = CVRStructureType.SingleCVRFile;
 
 int fileCount = 0;
 // set folder path of cvrs
@@ -22,9 +24,23 @@ if (args.Length > 0)
     {
         Console.WriteLine($"Writing to file {args[1]}");
         csvOutputPath = args[1];
+        // a third parameter selects the CVR structure type
+        if (args.Length > 2) 
+        {
+            Console.WriteLine($"CVR structure type: {args[2]}");
+            switch (args[2]) {
+                case "singlecvr":
+                    structureType = CVRStructureType.SingleCVRFile;
+                    break;
+                case "cvrreport":
+                    structureType = CVRStructureType.CastVoteRecordReport;
+                    break;
+            }
+            
+        }
     }
 }
-
+Console.WriteLine($"CVR structure type: {structureType}");
 Console.WriteLine(CVRRow.FormatCSVHeader());
 
 StreamWriter? csvWriter = null;
@@ -46,56 +62,33 @@ foreach (string cvrsPath in cvrsPaths)
         {
             DateTime createDate = file.CreationTime;
             DateTime modifyDate = file.LastWriteTime;
-            // if (fileCount % 73 == 0) // Print every 73rd file
-            // {
-            //     Console.WriteLine($"Processing file {file.Name} created {createDate} modified {modifyDate}");
-            // }
-            XElement cvrRoot = XElement.Load(file.FullName);
-            XNamespace ns = cvrRoot.GetDefaultNamespace();
-            string recordPartyKey = "";
-            CVRRow cvrRow = new CVRRow();
-            cvrRow.SetColumnValue("CreateDate", createDate.ToString("yyyy-MM-dd HH:mm:ss"));
-            cvrRow.SetColumnValue("ModifyDate", modifyDate.ToString("yyyy-MM-dd HH:mm:ss"));
-            CallIfHasStringValue(
-                (partyNameKey) => {
-                    if (partyStats.ContainsKey(partyNameKey)) {
-                        partyStats[partyNameKey].TotalCount++;
-                    } else {
-                        partyStats[partyNameKey] = new CVRStats(partyNameKey);
-                        partyStats[partyNameKey].TotalCount++;
-                    }
-                    recordPartyKey = partyNameKey;
-                },
-                CallIfHasValue(stats.IncrementParty, FindElement(cvrRoot, ns, "Party"))
-            );
-            CallOnPartyStats((s) => { s.IncrementGuids(); }, partyStats, recordPartyKey, 
-                CallIfHasStringValueRow(cvrRow.SetColumnValue,  
-                    CallIfHasValue(stats.IncrementGuids, FindElement(cvrRoot, ns, "CvrGuid"))));
-            CallOnPartyStats((s) => { s.IncrementBatchSequences(); }, partyStats, recordPartyKey,
-                CallIfHasStringValueRow(cvrRow.SetColumnValue,
-                    CallIfHasValue(stats.IncrementBatchSequences, FindElement(cvrRoot, ns, "BatchSequence"))));
-            CallOnPartyStatsInt((s, value) => { s.CheckSheetNumber(value); s.IncrementSheetNumbers(); }, partyStats,  recordPartyKey,
-                CallIfHasStringValueRow(cvrRow.SetColumnValue,
-                    CallIfHasIntValue(stats.CheckSheetNumber, 
-                        CallIfHasValue(stats.IncrementSheetNumbers, FindElement(cvrRoot, ns, "SheetNumber")))));
-            CallOnPartyStats((s) => { s.IncrementBatchNumbers(); }, partyStats,  recordPartyKey,
-                CallIfHasStringValueRow(cvrRow.SetColumnValue,
-                    CallIfHasValue(stats.IncrementBatchNumbers, FindElement(cvrRoot, ns, "BatchNumber"))));
-            CallOnPartyStats((s) => { s.IncrementContests(); }, partyStats,  recordPartyKey,
-                CallIfHasValue(stats.IncrementContests, FindElement(cvrRoot, ns, "Contests")));
-            CallOnPartyStats((s) => { s.IncrementPrecinctSplit(); }, partyStats,  recordPartyKey,
-                CallIfHasValue(stats.IncrementPrecinctSplit, FindElement(cvrRoot, ns, "PrecinctSplit")));
             fileCount++;
-            // Add to overall stats total CVR count
-            stats.TotalCount++;
-
-            if (fileCount % 313 == 0) // Print every 73rd file as csv from CVRRow
-            {
-                Console.WriteLine(cvrRow.FormatCSVRow());
-            }
-            // write row to csv file
-            if (csvWriter != null) csvWriter.WriteLine(cvrRow.FormatCSVRow());
             
+            if (structureType == CVRStructureType.CastVoteRecordReport)
+            {
+                Console.WriteLine($"Processing CVR report file: {file.FullName}");
+            }
+
+            XElement rootElement = XElement.Load(file.FullName);
+            XNamespace ns = rootElement.GetDefaultNamespace();
+
+            // process single CVR file
+            if (structureType == CVRStructureType.SingleCVRFile)
+            {
+                XElement cvrRoot = rootElement;
+
+                ParseStructureType.ProcessSingleCVRFile(structureType, stats, partyStats, cvrRoot, ns, csvWriter, createDate, modifyDate, fileCount);
+            }
+            else if (structureType == CVRStructureType.CastVoteRecordReport)
+            {
+                // process CVR report file
+                XElement reportRoot = rootElement;
+                ParseStructureType.ProcessCVRReportFile(structureType, stats, partyStats, reportRoot, ns, csvWriter, createDate, modifyDate, fileCount);
+            }
+            else
+            {
+                Console.WriteLine($"Unknown CVR structure type: {structureType}");
+            }
         }
         //if (fileCount > 2100) break;
     }
@@ -131,72 +124,3 @@ foreach (KeyValuePair<string, CVRStats> partyStat in partyStats)
     Console.WriteLine($"      Max SheetNumber:    {partyStat.Value.MaxSheetNumber:0######}");
 }
 
-XElement? FindElement(XElement cvrElement, XNamespace ns, string elemName)
-{
-    IEnumerable<XElement> batchSequences = from elem in cvrElement.Elements(ns + elemName) select elem;
-    foreach (XElement elem in batchSequences) return elem;
-    return null;
-}
-XElement? CallIfHasValue(StatUpdate callback, XElement? item)
-{
-    if (item != null) callback();
-    return item;
-}
-XElement? CallIfHasIntValue(StatUpdateInt callback, XElement? item)
-{
-    if (item != null) callback(Convert.ToInt32(item.Value));
-    return item;
-}
-XElement? CallIfHasStringValue(StatUpdateString callback, XElement? item)
-{
-    if (item != null) callback(item.Value);
-    return item;
-}
-XElement? CallIfHasIntValueRow(StatUpdateRowString callback, XElement? item)
-{
-    if (item != null) {
-        callback(item.Name.LocalName, item.Value);
-    }
-    return item;
-}
-XElement? CallIfHasStringValueRow(StatUpdateRowString callback, XElement? item)
-{
-    if (item != null) {
-        callback(item.Name.LocalName, item.Value);
-    }
-    return item;
-}
-XElement? CallOnAllPartyStats(StatUpdateStats callback, Dictionary<string, CVRStats> allPartyStats, XElement? item)
-{
-    if (item != null) foreach (KeyValuePair<string, CVRStats> partyStat in allPartyStats) callback(partyStat.Value);
-    return item;
-}
-XElement? CallOnAllPartyStatsInt(StatUpdateStatsInt callback, Dictionary<string, CVRStats> allPartyStats, XElement? item)
-{
-    if (item != null) foreach (KeyValuePair<string, CVRStats> partyStat in allPartyStats) callback(partyStat.Value, Convert.ToInt32(item.Value));
-    return item;
-}
-XElement? CallOnAllPartyStatsString(StatUpdateStatsString callback, Dictionary<string, CVRStats> allPartyStats, XElement? item)
-{
-    if (item != null) foreach (KeyValuePair<string, CVRStats> partyStat in allPartyStats) callback(partyStat.Value, item.Value);
-    return item;
-}
-XElement? CallOnPartyStats(StatUpdateStats callback, Dictionary<string, CVRStats> allPartyStats, string partyNameKey, XElement? item)
-{
-    if (item != null && allPartyStats.ContainsKey(partyNameKey)) callback(allPartyStats[partyNameKey]);
-    return item;
-}
-XElement? CallOnPartyStatsInt(StatUpdateStatsInt callback, Dictionary<string, CVRStats> allPartyStats, string partyNameKey, XElement? item)
-{
-    if (item != null && allPartyStats.ContainsKey(partyNameKey)) callback(allPartyStats[partyNameKey], Convert.ToInt32(item.Value));
-    return item;
-}
-void DoNothing() {}
-delegate void StatUpdate();
-delegate void StatUpdateInt(int value);
-delegate void StatUpdateString(string value);
-delegate void StatUpdateStats(CVRStats stats);
-delegate void StatUpdateStatsInt(CVRStats stats, int value);
-delegate void StatUpdateStatsString(CVRStats stats, string value);
-delegate void StatUpdateRowString(string columnName, string value);
-delegate void StatUpdateRowInt(string columnName, int value);
