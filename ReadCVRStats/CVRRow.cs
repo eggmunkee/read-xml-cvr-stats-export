@@ -1,17 +1,13 @@
-public class CVRRow
+public class CVRRowBase
 {
-    public static string[] Columns = new string[] {
-        "CvrGuid",
-        "BatchNumber",
-        "BatchSequence",
-        "SheetNumber",
-        "CreateDate",
-        "ModifyDate"
-    };
+    public string[] Columns;
 
-    public string[] ColumnValues = new string[Columns.Length];
+    public string[] ColumnValues;
 
-    public CVRRow() {}
+    public CVRRowBase() {
+        Columns = new string[] {};
+        ColumnValues = new string[Columns.Length];
+    }
 
     public void SetColumnValue(string columnName, string value)
     {
@@ -25,7 +21,7 @@ public class CVRRow
         }
     }
 
-    public static string FormatCSVHeader()
+    public string FormatCSVHeader()
     {
         string result = "";
         for (int i = 0; i < Columns.Length; i++)
@@ -46,4 +42,34 @@ public class CVRRow
         return result;
     }
 
+}
+
+public class SingleFileCVRRow : CVRRowBase
+{
+
+    public SingleFileCVRRow() {
+        Columns = new string[] {
+            "CvrGuid",
+            "BatchNumber",
+            "BatchSequence",
+            "SheetNumber",
+            "CreateDate",
+            "ModifyDate"
+        };
+        ColumnValues = new string[Columns.Length];
+    }
+}
+
+public class CVRReportRow : CVRRowBase
+{
+    public CVRReportRow() {
+        Columns = new string[] {
+            "BallotImageId",
+            "CreatingDeviceId",
+            "BallotStyleId",
+            "ObjectId",
+            "ElectionId"
+        };
+        ColumnValues = new string[Columns.Length];
+    }
 }

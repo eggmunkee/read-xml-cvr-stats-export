@@ -27,7 +27,7 @@ if (args.Length > 0)
         // a third parameter selects the CVR structure type
         if (args.Length > 2) 
         {
-            Console.WriteLine($"CVR structure type: {args[2]}");
+            //Console.WriteLine($"CVR structure type: {args[2]}");
             switch (args[2]) {
                 case "singlecvr":
                     structureType = CVRStructureType.SingleCVRFile;
@@ -40,14 +40,16 @@ if (args.Length > 0)
         }
     }
 }
+
+CVRRowBase headerCvrRow = ParseStructureType.GetOutputRow(structureType);
 Console.WriteLine($"CVR structure type: {structureType}");
-Console.WriteLine(CVRRow.FormatCSVHeader());
+Console.WriteLine(headerCvrRow.FormatCSVHeader());
 
 StreamWriter? csvWriter = null;
 if (csvOutputPath != "")
 {
     csvWriter = new StreamWriter(csvOutputPath);
-    csvWriter.WriteLine(CVRRow.FormatCSVHeader());
+    csvWriter.WriteLine(headerCvrRow.FormatCSVHeader());
 }
 
 // go through all folders
@@ -77,13 +79,13 @@ foreach (string cvrsPath in cvrsPaths)
             {
                 XElement cvrRoot = rootElement;
 
-                ParseStructureType.ProcessSingleCVRFile(structureType, stats, partyStats, cvrRoot, ns, csvWriter, createDate, modifyDate, fileCount);
+                ParseStructureType.ProcessCVRElement(structureType, stats, partyStats, cvrRoot, ns, csvWriter, createDate, modifyDate, fileCount);
             }
             else if (structureType == CVRStructureType.CastVoteRecordReport)
             {
                 // process CVR report file
                 XElement reportRoot = rootElement;
-                ParseStructureType.ProcessCVRReportFile(structureType, stats, partyStats, reportRoot, ns, csvWriter, createDate, modifyDate, fileCount);
+                ParseStructureType.ProcessCVRReportElement(structureType, stats, partyStats, reportRoot, ns, csvWriter, createDate, modifyDate, fileCount);
             }
             else
             {
