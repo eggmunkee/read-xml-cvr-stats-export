@@ -12,6 +12,8 @@ public class CVRStats
     public int TotalCVRsWithParty { get; set; } = 0;
     public int MinSheetNumber { get; set; } = int.MaxValue;
     public int MaxSheetNumber { get; set; } = int.MinValue;
+    public DateTime MinModifyDate { get; set; } = DateTime.MaxValue;
+    public DateTime MaxModifyDate { get; set; } = DateTime.MinValue;
     public string PartyFilter { get; set; } = "";
     public Hashtable FoundGuids { get; set; } = new Hashtable();
     public CVRStats()
@@ -54,6 +56,11 @@ public class CVRStats
     {
         if (sheetNumber < MinSheetNumber) MinSheetNumber = sheetNumber;
         if (sheetNumber > MaxSheetNumber) MaxSheetNumber = sheetNumber;
+    }
+    public void CheckModifyDate(DateTime modifyDate)
+    {
+        if (modifyDate < MinModifyDate) MinModifyDate = modifyDate;
+        if (modifyDate > MaxModifyDate) MaxModifyDate = modifyDate;
     }
     
 

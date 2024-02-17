@@ -30,9 +30,6 @@ public class ParseStructureType
     {
         string recordPartyKey = "";
         CVRRowBase cvrRow = GetOutputRow(structureType);
-        // Apply the file dates to the row columns (because one file per cvr makes the date cvr specific)
-        if (createDate != null) cvrRow.SetColumnValue("CreateDate", createDate.Value.ToString("yyyy-MM-dd HH:mm:ss"));
-        if (modifyDate != null) cvrRow.SetColumnValue("ModifyDate", modifyDate.Value.ToString("yyyy-MM-dd HH:mm:ss"));
         // PARTY ELEMENT
         CVRParse.CallFound_String( // Create or find and increment the party stat total count
             (partyNameKey) => {
@@ -47,6 +44,13 @@ public class ParseStructureType
             CVRParse.CallFound_Void(stats.IncrementParty, // Increment found party count
                 CVRParse.FindElement(cvrRoot, ns, "Party")) // Find Party elements
         );
+        // Apply the file dates to the row columns (because one file per cvr makes the date cvr specific)
+        if (createDate != null) cvrRow.SetColumnValue("CreateDate", createDate.Value.ToString("yyyy-MM-dd HH:mm:ss"));
+        if (modifyDate != null) cvrRow.SetColumnValue("ModifyDate", modifyDate.Value.ToString("yyyy-MM-dd HH:mm:ss"));
+        
+        stats.CheckModifyDate(modifyDate.Value);
+        if (partyStats.ContainsKey(recordPartyKey)) partyStats[recordPartyKey].CheckModifyDate(modifyDate.Value);
+
         // CVR GUID ELEMENT
         CVRParse.CallOnPartyStats((s) => { s.IncrementGuids(); }, partyStats, recordPartyKey, 
             CVRParse.CallFound_KeyValue(cvrRow.SetColumnValue,  
@@ -74,7 +78,7 @@ public class ParseStructureType
         // Add to overall stats total CVR count
         stats.TotalCount++;
 
-        if (fileCount % 313 == 0) // Print every 73rd file as csv from CVRRow
+        if (fileCount % 11313 == 0) // Print every 73rd file as csv from CVRRow
         {
             Console.WriteLine(cvrRow.FormatCSVRow());
         }

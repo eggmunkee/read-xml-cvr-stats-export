@@ -110,6 +110,9 @@ Console.WriteLine($"  With PrecinctSplit: {stats.TotalCVRsWithPrecinctSplit:0###
 Console.WriteLine($"  With Party:         {stats.TotalCVRsWithParty:0######}");
 Console.WriteLine($"  Min SheetNumber:    {stats.MinSheetNumber:0######}");
 Console.WriteLine($"  Max SheetNumber:    {stats.MaxSheetNumber:0######}");
+Console.WriteLine($"  Min Modify Date:    {stats.MinModifyDate:yyyy-MM-dd HH:mm:ss}");
+Console.WriteLine($"  Max Modify Date:    {stats.MaxModifyDate:yyyy-MM-dd HH:mm:ss}");
+
 // output any party stats
 foreach (KeyValuePair<string, CVRStats> partyStat in partyStats)
 {
@@ -124,5 +127,7 @@ foreach (KeyValuePair<string, CVRStats> partyStat in partyStats)
     Console.WriteLine($"      With Party:         {partyStat.Value.TotalCVRsWithParty:0######}");
     Console.WriteLine($"      Min SheetNumber:    {partyStat.Value.MinSheetNumber:0######}");
     Console.WriteLine($"      Max SheetNumber:    {partyStat.Value.MaxSheetNumber:0######}");
+    Console.WriteLine($"      Min Modify Date:    {partyStat.Value.MinModifyDate:yyyy-MM-dd HH:mm:ss}");
+    Console.WriteLine($"      Max Modify Date:    {partyStat.Value.MaxModifyDate:yyyy-MM-dd HH:mm:ss}");
 }
 
