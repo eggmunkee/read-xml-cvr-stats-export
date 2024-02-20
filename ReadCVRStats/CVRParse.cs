@@ -74,7 +74,8 @@ public class CVRParse {
     public delegate void StatUpdateStats(CVRStats stats);
     public delegate void StatUpdateStatsInt(CVRStats stats, int value);
     public delegate void StatUpdateStatsString(CVRStats stats, string value);
-    public delegate void StatUpdateKeyValue(string key, string value);
+    // returns false if the key could not be found
+    public delegate bool StatUpdateKeyValue(string key, string value);
     public delegate XElement? PassElement(XElement? item);
     
 }

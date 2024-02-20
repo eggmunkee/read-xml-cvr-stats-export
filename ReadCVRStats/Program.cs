@@ -1,59 +1,87 @@
-﻿using System.Reflection.Metadata.Ecma335;
-using System.Runtime.CompilerServices;
-using System.Xml.Linq;
+﻿using System.Xml.Linq;
+using System.Text.Json;
 
-// create stats collection
-CVRStats stats = new CVRStats();
-Dictionary<string, CVRStats> partyStats = new Dictionary<string, CVRStats>();
-// structure type to parse
-CVRStructureType structureType = CVRStructureType.SingleCVRFile;
+// // create stats collection
+// CVRStats stats = new CVRStats();
+// VoteSelections voteSelections = new VoteSelections();
+// Dictionary<string, CVRStats> partyStats = new Dictionary<string, CVRStats>();
+// // structure type to parse
+// CVRStructureType structureType = CVRStructureType.SingleCVRFile;
 
-int fileCount = 0;
+ProgramData programData = new ProgramData (
+    new CVRStats(),
+    new VoteSelections(),
+    new Dictionary<string, CVRStats>(),
+    CVRStructureType.SingleCVRFile
+);
+ProgramConfiguration config = programData.config;
+
 // set folder path of cvrs
-string[] cvrsPaths = new string[] { 
+config.cvrsPaths = new string[] { 
     // "/home/ user name /Documents/folder path" for linux
     // "C:\\Users\\ user name \\Documents\\folder path" for windows
 };
 
 // If command arguments passed, use first as folder path and second as CSV output file path
-string csvOutputPath = "";
 if (args.Length > 0) 
 {
-    cvrsPaths = new string[] { args[0] }; // set CVR folder path
+    if (args[0] != "") {
+        config.cvrsPaths = new string[] { args[0] }; // set CVR folder path
+    }
     if (args.Length > 1) 
     {
         Console.WriteLine($"Writing to file {args[1]}");
-        csvOutputPath = args[1];
+        config.csvOutputPath = args[1];
         // a third parameter selects the CVR structure type
         if (args.Length > 2) 
         {
-            //Console.WriteLine($"CVR structure type: {args[2]}");
             switch (args[2]) {
                 case "singlecvr":
-                    structureType = CVRStructureType.SingleCVRFile;
+                    config.structureType = CVRStructureType.SingleCVRFile;
                     break;
                 case "cvrreport":
-                    structureType = CVRStructureType.CastVoteRecordReport;
+                    config.structureType = CVRStructureType.CastVoteRecordReport;
                     break;
             }
-            
+            // fourth parameter and fifth parameter are for limit to files and limit to CVRs
+            if (args.Length > 3) 
+            {
+                config.maxFileProcessCount = int.Parse(args[3]);
+                if (args.Length > 4) 
+                {
+                    config.maxCVRProcessCount = int.Parse(args[4]);
+                }
+            }
         }
+
     }
 }
 
-CVRRowBase headerCvrRow = ParseStructureType.GetOutputRow(structureType);
-Console.WriteLine($"CVR structure type: {structureType}");
+CVRRowBase headerCvrRow = ParseStructureType.GetOutputRow(programData.config.structureType);
+Console.WriteLine($"CVR structure type: {programData.config.structureType}");
 Console.WriteLine(headerCvrRow.FormatCSVHeader());
 
-StreamWriter? csvWriter = null;
-if (csvOutputPath != "")
+ContestColumnInfo? prerunContestsConfigInfo = null;
+
+if (config.contestsJsonOutputPath != "" && File.Exists(config.contestsJsonOutputPath))
 {
-    csvWriter = new StreamWriter(csvOutputPath);
+    string jsonContestColumnInfo = File.ReadAllText(config.contestsJsonOutputPath);
+    prerunContestsConfigInfo = JsonSerializer.Deserialize<ContestColumnInfo>(jsonContestColumnInfo);
+    programData.contestColumnInfo = prerunContestsConfigInfo;
+}
+
+StreamWriter? csvWriter = null;
+if (config.csvOutputPath != "")
+{
+    // store the contest info if any with the header row
+    headerCvrRow.contestsInfo = prerunContestsConfigInfo;
+    csvWriter = new StreamWriter(config.csvOutputPath);
     csvWriter.WriteLine(headerCvrRow.FormatCSVHeader());
 }
 
+int tickerCount = 0;
 // go through all folders
-foreach (string cvrsPath in cvrsPaths)
+foreach (string cvrsPath in config.cvrsPaths)
 {
     // get folder
     DirectoryInfo diCVRs = new DirectoryInfo(cvrsPath);
@@ -64,9 +92,9 @@ foreach (string cvrsPath in cvrsPaths)
         {
             DateTime createDate = file.CreationTime;
             DateTime modifyDate = file.LastWriteTime;
-            fileCount++;
+            programData.fileCount++;
             
-            if (structureType == CVRStructureType.CastVoteRecordReport)
+            if (programData.structureType == CVRStructureType.CastVoteRecordReport)
             {
                 Console.WriteLine($"Processing CVR report file: {file.FullName}");
             }
@@ -75,59 +103,34 @@ foreach (string cvrsPath in cvrsPaths)
             XNamespace ns = rootElement.GetDefaultNamespace();
 
             // process single CVR file
-            if (structureType == CVRStructureType.SingleCVRFile)
+            if (programData.config.structureType == CVRStructureType.SingleCVRFile)
             {
                 XElement cvrRoot = rootElement;
 
-                ParseStructureType.ProcessCVRElement(structureType, stats, partyStats, cvrRoot, ns, csvWriter, createDate, modifyDate, fileCount);
+                ParseStructureType.ProcessCVRElement(programData, cvrRoot, ns, csvWriter, createDate, modifyDate);
             }
-            else if (structureType == CVRStructureType.CastVoteRecordReport)
+            else if (programData.config.structureType == CVRStructureType.CastVoteRecordReport)
             {
                 // process CVR report file
                 XElement reportRoot = rootElement;
-                ParseStructureType.ProcessCVRReportElement(structureType, stats, partyStats, reportRoot, ns, csvWriter, createDate, modifyDate, fileCount);
+                ParseStructureType.ProcessCVRReportElement(programData, reportRoot, ns, csvWriter, createDate, modifyDate);
             }
             else
             {
-                Console.WriteLine($"Unknown CVR structure type: {structureType}");
+                Console.WriteLine($"Unknown CVR structure type: {programData.config.structureType}");
             }
         }
-        //if (fileCount > 2100) break;
+        
+        tickerCount = programData.WriteTickerCheck(tickerCount);
+
+        // Check file and CVR process limits
+        if (programData.config.maxFileProcessCount > 0 && programData.fileCount > programData.config.maxFileProcessCount) break;
+        if (programData.config.maxCVRProcessCount > 0 && programData.stats.TotalCount > programData.config.maxCVRProcessCount) break;
     }
 }
 
 // if there is a csv writer, close it
 if (csvWriter != null) csvWriter.Close();
 
-Console.WriteLine("");
-Console.WriteLine($"Total CVRs processed: {stats.TotalCount:0######}");
-Console.WriteLine($"  With BatchSequence  {stats.TotalCVRsWithBatchSequence:0######}");
-Console.WriteLine($"  With BatchNumber    {stats.TotalCVRsWithBatchNumber:0######}");
-Console.WriteLine($"  With SheetNumber    {stats.TotalCVRsWithSheetNumber:0######}");
-Console.WriteLine($"  With CvrGuid:       {stats.TotalCVRsWithGuid:0######}");
-Console.WriteLine($"  With Contests:      {stats.TotalCVRsWithContests:0######}");
-Console.WriteLine($"  With PrecinctSplit: {stats.TotalCVRsWithPrecinctSplit:0######}");
-Console.WriteLine($"  With Party:         {stats.TotalCVRsWithParty:0######}");
-Console.WriteLine($"  Min SheetNumber:    {stats.MinSheetNumber:0######}");
-Console.WriteLine($"  Max SheetNumber:    {stats.MaxSheetNumber:0######}");
-Console.WriteLine($"  Min Modify Date:    {stats.MinModifyDate:yyyy-MM-dd HH:mm:ss}");
-Console.WriteLine($"  Max Modify Date:    {stats.MaxModifyDate:yyyy-MM-dd HH:mm:ss}");
-
-// output any party stats
-foreach (KeyValuePair<string, CVRStats> partyStat in partyStats)
-{
-    Console.WriteLine($"  Party: {partyStat.Key} - - - - - - - - - - -");
-    Console.WriteLine($"    Total CVRs: {partyStat.Value.TotalCount:0######}");
-    Console.WriteLine($"      With BatchSequence  {partyStat.Value.TotalCVRsWithBatchSequence:0######}");
-    Console.WriteLine($"      With BatchNumber    {partyStat.Value.TotalCVRsWithBatchNumber:0######}");
-    Console.WriteLine($"      With SheetNumber    {partyStat.Value.TotalCVRsWithSheetNumber:0######}");
-    Console.WriteLine($"      With CvrGuid:       {partyStat.Value.TotalCVRsWithGuid:0######}");
-    Console.WriteLine($"      With Contests:      {partyStat.Value.TotalCVRsWithContests:0######}");
-    Console.WriteLine($"      With PrecinctSplit: {partyStat.Value.TotalCVRsWithPrecinctSplit:0######}");
-    Console.WriteLine($"      With Party:         {partyStat.Value.TotalCVRsWithParty:0######}");
-    Console.WriteLine($"      Min SheetNumber:    {partyStat.Value.MinSheetNumber:0######}");
-    Console.WriteLine($"      Max SheetNumber:    {partyStat.Value.MaxSheetNumber:0######}");
-    Console.WriteLine($"      Min Modify Date:    {partyStat.Value.MinModifyDate:yyyy-MM-dd HH:mm:ss}");
-    Console.WriteLine($"      Max Modify Date:    {partyStat.Value.MaxModifyDate:yyyy-MM-dd HH:mm:ss}");
-}
-
+// Write the stats and contest results out to console
+programData.WriteOutResults();

@@ -16,6 +16,8 @@ public class CVRStats
     public DateTime MaxModifyDate { get; set; } = DateTime.MinValue;
     public string PartyFilter { get; set; } = "";
     public Hashtable FoundGuids { get; set; } = new Hashtable();
+
+    public Dictionary<string, int> ContestCounts { get; set; } = new Dictionary<string, int>();
     public CVRStats()
     {
     }
@@ -62,6 +64,19 @@ public class CVRStats
         if (modifyDate < MinModifyDate) MinModifyDate = modifyDate;
         if (modifyDate > MaxModifyDate) MaxModifyDate = modifyDate;
     }
+    public void CheckContest(string partyName, string contestName)
+    {
+        contestName = partyName != "" ? $"{partyName}|{contestName}" : contestName;
+        if (ContestCounts.ContainsKey(contestName))
+        {
+            ContestCounts[contestName]++;
+        }
+        else
+        {
+            ContestCounts[contestName] = 1;
+        }
+    }
+    
     
 
 }
