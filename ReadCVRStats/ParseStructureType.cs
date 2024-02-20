@@ -77,6 +77,7 @@ public class ParseStructureType
         {
             string contestId = contestElem.Element(ns + "Id").Value;
             string contestName = contestElem.Element(ns + "Name").Value;
+            contestName = CVRRowBase.CleanValue(contestName); // normalize the contest name
 
             ContestInfo contestInfo = programData.voteSelections.AddOrReturnContest(contestId, contestName, recordPartyKey);
 
@@ -98,6 +99,7 @@ public class ParseStructureType
                     string optionId = optionElem.Element(ns + "Id").Value;
                     XElement? nameElem = optionElem.Element(ns + "Name");
                     string? optionName = nameElem == null ? "No Name" : nameElem.Value;
+                    optionName = CVRRowBase.CleanValue(optionName); // normalize the option name
 
                     ContestOptionInfo optionInfo = contestInfo.AddOrReturnOption(optionId, optionName);
 
