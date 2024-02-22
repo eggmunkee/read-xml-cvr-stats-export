@@ -26,7 +26,9 @@ public class ParseStructureType
     {
         string recordPartyKey = "";
         CVRRowBase cvrRow = GetOutputRow(programData.structureType);
-        cvrRow.AddContestInfo(programData.contestColumnInfo);
+        if (programData.contestColumnInfo != null) {
+            cvrRow.AddContestInfo(programData.contestColumnInfo);
+        }
         // PARTY ELEMENT
         CVRParse.CallFound_String( // Create or find and increment the party stat total count
             (partyNameKey) => {
@@ -75,6 +77,8 @@ public class ParseStructureType
         // Process the contests and options
         foreach (XElement contestElem in cvrRoot.Descendants(ns + "Contest"))
         {
+            if (programData.Canceling) return;
+
             string contestId = contestElem.Element(ns + "Id").Value;
             string contestName = contestElem.Element(ns + "Name").Value;
             contestName = CVRRowBase.CleanValue(contestName); // normalize the contest name
@@ -85,8 +89,10 @@ public class ParseStructureType
             contestInfo.AddParticipant();
             // mark in the stats that this contest was found
             programData.stats.CheckContest(recordPartyKey, contestName);
-            // mark the cvr row for this contest with a null option (marks the participation in the contest)
-            cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, "", "", "X");
+            if (programData.contestColumnInfo != null) {
+                // mark the cvr row for this contest with a null option (marks the participation in the contest)
+                cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, "", "", "X");
+            }
 
             // mark the party stats that this contest was found (if party being included)
             if (programData.partyStats.ContainsKey(recordPartyKey)) programData.partyStats[recordPartyKey].CheckContest("", contestName);
@@ -112,19 +118,21 @@ public class ParseStructureType
                         selectionInfo.AddVote();
                     }
 
-                    // Mark this Contest Name and this Option Name as found in the CVRRow with a true if the selection value was found
-                    cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, optionId, optionName, foundValue ? "1" : "0");
+                    if (programData.contestColumnInfo != null) {
+                        // Mark this Contest Name and this Option Name as found in the CVRRow with a true if the selection value was found
+                        cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, optionId, optionName, foundValue ? "1" : "0");
+                    }
 
                     if (!foundValue)
                     {
-                        Console.WriteLine($"  No value found in {contestName} - {optionName} - {optionElem}");
+                        programData.WriteLogLine($"  No value found in {contestName} - {optionName} - {optionElem}");
                     }
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Error processing contest: {contestId} - {contestName}");
-                Console.WriteLine(e.Message);
+                programData.WriteLogLine($"Error processing contest: {contestId} - {contestName}");
+                programData.WriteLogLine(e.Message);
             }
 
         }
@@ -132,12 +140,15 @@ public class ParseStructureType
         // Add to overall stats total CVR count
         programData.stats.TotalCount++;
 
-        if (programData.fileCount % 114313 == 0) // Print every 73rd file as csv from CVRRow
+        if (programData.stats.TotalCount == 1) // Print every 73rd file as csv from CVRRow
         {
-            //Console.WriteLine(cvrRow.FormatCSVRow());
+            programData.WriteLogLine("First Row Data Sample:");
+            programData.WriteLogLine(cvrRow.FormatCSVRow());
         }
-        // write row to csv file
-        if (csvWriter != null) csvWriter.WriteLine(cvrRow.FormatCSVRow());
+        if (programData.contestColumnInfo != null) {
+            // write row to csv file
+            if (csvWriter != null) csvWriter.WriteLine(cvrRow.FormatCSVRow());
+        }
     }
 
     public static void ProcessCVRReportElement(ProgramData programData, 
@@ -146,6 +157,8 @@ public class ParseStructureType
         // go through each CVR element under the root
         foreach (XElement cvrRoot in reportRoot.Elements(ns + "CVR"))
         {
+            if (programData.Canceling) return;
+
             ProcessReportCVRElement(programData, cvrRoot, ns, csvWriter, null, null);
 
             // check cvr process limit
@@ -166,9 +179,9 @@ public class ParseStructureType
                 if (fileNameAttr != null) {
                     Match match = reFirstNumber.Match(fileNameAttr.Value);
                     if (match.Success) cvrRow.SetColumnValue("BallotImageId", match.Value);
-                    else Console.WriteLine($"No number found in: {fileNameAttr.Value}");
+                    else programData.WriteLogLine($"No number found in: {fileNameAttr.Value}");
                 }
-                else Console.WriteLine($"No file attribute on: {item}");
+                else programData.WriteLogLine($"No file attribute on: {item}");
             }, 
             CVRParse.CallFound_Void(programData.stats.IncrementGuids, 
                 CVRParse.CallFound_If((el) => CVRParse.FindElement(el, ns, "Image"), 
@@ -189,9 +202,9 @@ public class ParseStructureType
         // Add to overall stats total CVR count
         programData.stats.TotalCount++;
 
-        if (programData.fileCount % 1573 == 0) // Print every 73rd file as csv from CVRRow
+        if (programData.stats.TotalCount == 1) // Print every 73rd file as csv from CVRRow
         {
-            Console.WriteLine(cvrRow.FormatCSVRow());
+            programData.WriteLogLine(cvrRow.FormatCSVRow());
         }
         // write row to csv file
         if (csvWriter != null) csvWriter.WriteLine(cvrRow.FormatCSVRow());
