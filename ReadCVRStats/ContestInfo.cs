@@ -6,6 +6,8 @@ public class ContestInfo
     public int ContestParticipantCount { get; set; } = 0;
 
     public Dictionary<string, ContestOptionInfo> ContestOptions { get; set; }
+    public int UndervoteCount { get; set; } = 0;
+    public int OvervoteCount { get; set; } = 0;
 
     public ContestInfo()
     {
@@ -31,6 +33,16 @@ public class ContestInfo
     public void AddParticipant()
     {
         ContestParticipantCount++;
+    }
+
+    public void AddUndervoteCount()
+    {
+        UndervoteCount++;
+    }
+
+    public void AddOvervotesAmount(int overvotes)
+    {
+        OvervoteCount += overvotes;
     }
 }
 

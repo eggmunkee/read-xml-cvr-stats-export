@@ -99,33 +99,74 @@ public class ParseStructureType
             try {
 
                 XElement? optionsContainer = contestElem.Element(ns + "Options");
-                if (optionsContainer == null) continue;
-                foreach (XElement optionElem in optionsContainer.Elements(ns + "Option"))
+                if (optionsContainer != null) {
+                    foreach (XElement optionElem in optionsContainer.Elements(ns + "Option"))
+                    {
+                        string optionId = optionElem.Element(ns + "Id").Value;
+                        XElement? nameElem = optionElem.Element(ns + "Name");
+                        string? optionName = nameElem == null ? "No Name" : nameElem.Value;
+                        optionName = CVRRowBase.CleanValue(optionName); // normalize the option name
+
+                        ContestOptionInfo optionInfo = contestInfo.AddOrReturnOption(optionId, optionName);
+
+                        bool foundValue = false;
+                        foreach (XElement selectionElem in optionElem.Descendants(ns + "Value"))
+                        {
+                            string selectionValue = selectionElem.Value;
+                            foundValue = true;
+                            ContestOptionSelection selectionInfo = optionInfo.AddOrReturnSelection(selectionValue, selectionValue);
+                            selectionInfo.AddVote();
+                        }
+
+                        if (programData.contestColumnInfo != null) {
+                            // Mark this Contest Name and this Option Name as found in the CVRRow with a true if the selection value was found
+                            cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, optionId, optionName, foundValue ? "1" : "0");
+                        }
+
+                        if (!foundValue)
+                        {
+                            programData.WriteLogLine($"  No value found in {contestName} - {optionName} - {optionElem}");
+                        }
+                    }
+                }
+                XElement? undervoteElem = contestElem.Element(ns + "Undervotes");
+                if (undervoteElem != null)
                 {
-                    string optionId = optionElem.Element(ns + "Id").Value;
-                    XElement? nameElem = optionElem.Element(ns + "Name");
-                    string? optionName = nameElem == null ? "No Name" : nameElem.Value;
-                    optionName = CVRRowBase.CleanValue(optionName); // normalize the option name
-
-                    ContestOptionInfo optionInfo = contestInfo.AddOrReturnOption(optionId, optionName);
-
-                    bool foundValue = false;
-                    foreach (XElement selectionElem in optionElem.Descendants(ns + "Value"))
+                    int undervoteCount = -1;
+                    if (int.TryParse(undervoteElem.Value, out undervoteCount))
                     {
-                        string selectionValue = selectionElem.Value;
-                        foundValue = true;
-                        ContestOptionSelection selectionInfo = optionInfo.AddOrReturnSelection(selectionValue, selectionValue);
-                        selectionInfo.AddVote();
+                        //programData.WriteLogLine($" Undervote Found - {undervoteCount} in {contestName}");
+                        if (undervoteCount != 1) {
+                            programData.WriteLogLine($"ValidationError in Contest {contestName} - Undervote count IS NOT 1");
+                            throw new Exception($"ValidationError in Contest {contestName} - Undervote count IS NOT 1");
+                        }
+                        contestInfo.AddUndervoteCount();
+                        if (programData.contestColumnInfo != null) {
+                            // mark the cvr row for this contest with a null option (marks the participation in the contest)
+                            cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, "", "", "U");
+                        }
                     }
-
-                    if (programData.contestColumnInfo != null) {
-                        // Mark this Contest Name and this Option Name as found in the CVRRow with a true if the selection value was found
-                        cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, optionId, optionName, foundValue ? "1" : "0");
-                    }
-
-                    if (!foundValue)
+                    else
                     {
-                        programData.WriteLogLine($"  No value found in {contestName} - {optionName} - {optionElem}");
+                        programData.WriteLogLine($"  Undervote count not a number in {contestName} - {undervoteElem}");
+                    }
+                }
+                XElement? overvoteElem = contestElem.Element(ns + "Overvotes");
+                if (overvoteElem != null)
+                {
+                    int overvoteCount = -1;
+                    if (int.TryParse(overvoteElem.Value, out overvoteCount))
+                    {
+                        //programData.WriteLogLine($" Overvote Found - {overvoteCount} in {contestName}");
+                        contestInfo.AddOvervotesAmount(overvoteCount);
+                        if (programData.contestColumnInfo != null) {
+                            // mark the cvr row for this contest with a null option (marks the participation in the contest)
+                            cvrRow.SetContestColumnMarked(recordPartyKey, contestId, contestName, "", "", "O");
+                        }
+                    }
+                    else
+                    {
+                        programData.WriteLogLine($"  Overvote count not a number in {contestName} - {overvoteElem}");
                     }
                 }
             }

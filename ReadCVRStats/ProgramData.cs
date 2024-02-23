@@ -490,6 +490,9 @@ public class ProgramData
                 }
             }
             WriteLogLine($"    Total Selections: {totalSelections}");
+            if (contest.UndervoteCount > 0) WriteLogLine($"    Total Undervotes: {contest.UndervoteCount}");
+            if (contest.OvervoteCount > 0) WriteLogLine($"    Total Overvotes: {contest.OvervoteCount}");
+            WriteLogLine($"    Combined Total: {totalSelections + contest.UndervoteCount + contest.OvervoteCount}");
         }
 
         
