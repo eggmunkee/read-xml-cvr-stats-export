@@ -20,4 +20,9 @@ finally {
 
 Console.WriteLine("-----------------------------------------------");
 Console.WriteLine("Press any key to exit");
-Console.ReadKey();
+try {
+    Console.ReadKey();
+}
+catch {
+    // ignore if console input is not available
+}
